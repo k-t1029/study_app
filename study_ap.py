@@ -23,24 +23,25 @@ def load_data():
                 listbox_probs.insert(tk.END, item)
 
 # --- 機能 ---
-def add_todo():
+def add_todo(event=None):
     task = entry_todo.get()
     if task:
-        listbox_todo.insert(tk.END, f"○ {task}")
+        # 最初の状態を [ ] ボックスにする
+        listbox_todo.insert(tk.END, f"[ ] {task}")
         entry_todo.delete(0, tk.END)
         save_data()
 
-def toggle_check():
-    """「ちょん」とチェックマーク(✓)を付け外しする"""
+def toggle_check_event(event):
+    """[ ] を [✓] に書き換えて、チェックを入れたように見せる"""
     try:
-        idx = listbox_todo.curselection()[0]
+        idx = listbox_todo.nearest(event.y)
         text = listbox_todo.get(idx)
         
-        # 「✓」があれば外し、「○」があれば付ける
-        if "✓" in text:
-            new_text = text.replace("✓ ", "○ ")
+        # ボックスの中身を切り替える
+        if "[✓]" in text:
+            new_text = text.replace("[✓]", "[ ]")
         else:
-            new_text = text.replace("○ ", "✓ ")
+            new_text = text.replace("[ ]", "[✓]")
         
         listbox_todo.delete(idx)
         listbox_todo.insert(idx, new_text)
@@ -60,10 +61,12 @@ def select_image():
     path = filedialog.askopenfilename(filetypes=[("Image", "*.jpg *.png *.gif")])
     if path: label_prob_path.config(text=path)
 
-def open_prob():
+def open_prob_event(event):
     try:
-        path = listbox_probs.get(listbox_probs.curselection()).split(" | ")[1]
-        os.startfile(path)
+        idx = listbox_probs.nearest(event.y)
+        path = listbox_probs.get(idx).split(" | ")[1]
+        if os.path.exists(path):
+            os.startfile(path)
     except: pass
 
 def delete_selected(lb):
@@ -75,7 +78,7 @@ def delete_selected(lb):
 # --- GUI ---
 root = tk.Tk()
 root.title("院試対策マネージャー")
-root.geometry("600x650")
+root.geometry("600x600")
 
 notebook = ttk.Notebook(root)
 tab1 = ttk.Frame(notebook)
@@ -84,29 +87,35 @@ notebook.add(tab1, text=" やることリスト ")
 notebook.add(tab2, text=" 良問リスト ")
 notebook.pack(expand=True, fill="both")
 
-# --- Tab 1: やること (チェックマーク機能) ---
+# --- Tab 1: やること ---
 tk.Label(tab1, text="試験までにやるべきこと:", font=("", 10, "bold")).pack(pady=10)
 entry_todo = tk.Entry(tab1, width=40)
 entry_todo.pack()
+entry_todo.bind("<Return>", add_todo)
 tk.Button(tab1, text="追加", command=add_todo).pack(pady=5)
-listbox_todo = tk.Listbox(tab1, width=50, height=15, font=("", 11))
-listbox_todo.pack(pady=5)
 
-# ボタンの名称を「チェック」に変更
-tk.Button(tab1, text="✓ チェックを入れる / 外す", command=toggle_check, bg="#f1f8e9").pack(pady=5)
+tk.Label(tab1, text="※[ ] をダブルクリックでチェックを入れます", fg="gray").pack()
+# 等幅フォント(Courierなど)を使うとボックスが綺麗に並びます
+listbox_todo = tk.Listbox(tab1, width=50, height=15, font=("Courier", 12))
+listbox_todo.pack(pady=5)
+listbox_todo.bind("<Double-Button-1>", toggle_check_event)
+
 tk.Button(tab1, text="削除", command=lambda: delete_selected(listbox_todo), fg="red").pack(pady=5)
 
 # --- Tab 2: 良問 ---
-tk.Label(tab2, text="良問アーカイブ (画像管理):", font=("", 10, "bold")).pack(pady=10)
+tk.Label(tab2, text="良問アーカイブ:", font=("", 10, "bold")).pack(pady=10)
 entry_prob = tk.Entry(tab2, width=40)
 entry_prob.pack()
 tk.Button(tab2, text="画像を選択", command=select_image).pack(pady=2)
 label_prob_path = tk.Label(tab2, text="未選択", fg="blue")
 label_prob_path.pack()
 tk.Button(tab2, text="良問リストに追加", command=add_prob).pack(pady=5)
-listbox_probs = tk.Listbox(tab2, width=50, height=12)
+
+tk.Label(tab2, text="※ダブルクリックで画像を表示", fg="gray").pack()
+listbox_probs = tk.Listbox(tab2, width=50, height=12, font=("", 11))
 listbox_probs.pack(pady=5)
-tk.Button(tab2, text="選択した問題を開く", command=open_prob).pack(pady=2)
+listbox_probs.bind("<Double-Button-1>", open_prob_event)
+
 tk.Button(tab2, text="削除", command=lambda: delete_selected(listbox_probs), fg="red").pack()
 
 load_data()
