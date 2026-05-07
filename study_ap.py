@@ -1,81 +1,105 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import os
-import json # データを保存するためのライブラリ
+import json
 
-# 保存先ファイル名
-DATA_FILE = "study_data.json"
+DATA_FILE = "grad_study_data.json"
 
 def save_data():
-    """リストボックスの内容をファイルに保存する"""
-    items = listbox.get(0, tk.END)
+    data = {
+        "todo": [listbox_todo.get(i) for i in range(listbox_todo.size())],
+        "good_probs": [listbox_probs.get(i) for i in range(listbox_probs.size())]
+    }
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(items, f, ensure_ascii=False)
+        json.dump(data, f, ensure_ascii=False)
 
 def load_data():
-    """ファイルからデータを読み込んでリストボックスに表示する"""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            items = json.load(f)
-            for item in items:
-                listbox.insert(tk.END, item)
+            data = json.load(f)
+            for item in data.get("todo", []):
+                listbox_todo.insert(tk.END, item)
+            for item in data.get("good_probs", []):
+                listbox_probs.insert(tk.END, item)
 
-def add_item():
-    task = entry_task.get()
-    img_path = label_path.cget("text")
+# --- 機能 ---
+def add_todo():
+    task = entry_todo.get()
     if task:
-        listbox.insert(tk.END, f"{task} | {img_path}")
-        entry_task.delete(0, tk.END)
-        label_path.config(text="画像未選択")
-        save_data() # 追加したら保存
-    else:
-        messagebox.showwarning("警告", "タスクを入力してください")
+        listbox_todo.insert(tk.END, f"□ {task}")
+        entry_todo.delete(0, tk.END)
+        save_data()
 
-def delete_item():
+def toggle_todo():
     try:
-        selected_index = listbox.curselection()[0]
-        listbox.delete(selected_index)
-        save_data() # 削除したら保存
-    except IndexError:
-        messagebox.showwarning("警告", "削除する項目を選択してください")
+        idx = listbox_todo.curselection()[0]
+        text = listbox_todo.get(idx)
+        new_text = text.replace("□", "■") if "□" in text else text.replace("■", "□")
+        listbox_todo.delete(idx)
+        listbox_todo.insert(idx, new_text)
+        save_data()
+    except: pass
+
+def add_prob():
+    name = entry_prob.get()
+    path = label_prob_path.cget("text")
+    if name and path != "未選択":
+        listbox_probs.insert(tk.END, f"{name} | {path}")
+        entry_prob.delete(0, tk.END)
+        label_prob_path.config(text="未選択")
+        save_data()
 
 def select_image():
-    file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.png *.gif")])
-    if file_path:
-        label_path.config(text=file_path)
+    path = filedialog.askopenfilename(filetypes=[("Image", "*.jpg *.png *.gif")])
+    if path: label_prob_path.config(text=path)
 
-def open_image():
+def open_prob():
     try:
-        selected = listbox.get(listbox.curselection())
-        path = selected.split(" | ")[1]
-        if os.path.exists(path):
-            os.startfile(path)
-        else:
-            messagebox.showerror("エラー", "画像が見つかりません")
-    except:
-        messagebox.showwarning("警告", "リストから項目を選択してください")
+        path = listbox_probs.get(listbox_probs.curselection()).split(" | ")[1]
+        os.startfile(path)
+    except: pass
 
+def delete_selected(lb):
+    try:
+        lb.delete(lb.curselection()[0])
+        save_data()
+    except: pass
+
+# --- GUI ---
 root = tk.Tk()
-root.title("院試対策 共有ToDo & 問題集")
-root.geometry("500x450")
+root.title("院試対策マネージャー")
+root.geometry("600x650")
 
-tk.Label(root, text="やるべきこと・共有したい問題名:").pack()
-entry_task = tk.Entry(root, width=50)
-entry_task.pack(pady=5)
+# タブの作成（機能ごとに分ける）
+notebook = ttk.Notebook(root)
+tab1 = ttk.Frame(notebook)
+tab2 = ttk.Frame(notebook)
+notebook.add(tab1, text=" やることリスト ")
+notebook.add(tab2, text=" 良問リスト ")
+notebook.pack(expand=True, fill="both")
 
-tk.Button(root, text="問題を写真で追加(ファイル選択)", command=select_image).pack()
-label_path = tk.Label(root, text="画像未選択", fg="blue")
-label_path.pack()
+# --- Tab 1: やること ---
+tk.Label(tab1, text="試験までにやるべきこと:", font=("", 10, "bold")).pack(pady=10)
+entry_todo = tk.Entry(tab1, width=40)
+entry_todo.pack()
+tk.Button(tab1, text="追加", command=add_todo).pack(pady=5)
+listbox_todo = tk.Listbox(tab1, width=50, height=15)
+listbox_todo.pack(pady=5)
+tk.Button(tab1, text="完了/未完了の切替", command=toggle_todo).pack(pady=2)
+tk.Button(tab1, text="削除", command=lambda: delete_selected(listbox_todo), fg="red").pack()
 
-tk.Button(root, text="リストに追加", command=add_item).pack(pady=10)
+# --- Tab 2: 良問 ---
+tk.Label(tab2, text="良問アーカイブ (画像管理):", font=("", 10, "bold")).pack(pady=10)
+entry_prob = tk.Entry(tab2, width=40)
+entry_prob.pack()
+tk.Button(tab2, text="画像を選択", command=select_image).pack(pady=2)
+label_prob_path = tk.Label(tab2, text="未選択", fg="blue")
+label_prob_path.pack()
+tk.Button(tab2, text="良問リストに追加", command=add_prob).pack(pady=5)
+listbox_probs = tk.Listbox(tab2, width=50, height=12)
+listbox_probs.pack(pady=5)
+tk.Button(tab2, text="選択した問題を開く", command=open_prob).pack(pady=2)
+tk.Button(tab2, text="削除", command=lambda: delete_selected(listbox_probs), fg="red").pack()
 
-listbox = tk.Listbox(root, width=60, height=10)
-listbox.pack(padx=20)
-
-tk.Button(root, text="選択した問題の写真を見る", command=open_image).pack(pady=5)
-tk.Button(root, text="選択した項目を削除する", command=delete_item, fg="red").pack(pady=5)
-
-# アプリ起動時にデータを読み込む
 load_data()
-
 root.mainloop()
