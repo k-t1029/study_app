@@ -161,4 +161,31 @@ notebook.pack(expand=True, fill="both", pady=(40, 0))
 tk.Label(tab1, text="内容:").pack(pady=(10, 0))
 entry_todo = tk.Entry(tab1, width=40); entry_todo.pack()
 
-tk.Label(tab1, text="期限 (例:
+tk.Label(tab1, text="期限 (例: 0530 / 空欄で期限なし):", fg="gray").pack(pady=(10, 0))
+entry_todo_date = tk.Entry(tab1, width=20); entry_todo_date.pack()
+
+entry_todo.bind("<Return>", add_todo)
+entry_todo_date.bind("<Return>", add_todo)
+
+tk.Button(tab1, text="追加", command=add_todo).pack(pady=10)
+
+listbox_todo = tk.Listbox(tab1, width=65, height=18, font=("Courier", 11))
+listbox_todo.pack(pady=5); listbox_todo.bind("<Double-Button-1>", toggle_check_event)
+tk.Button(tab1, text="削除", command=lambda: delete_item(listbox_todo), fg="red").pack()
+
+# --- Tab 2 & 3 は維持 ---
+tk.Label(tab2, text="良問アーカイブ:").pack(pady=5)
+entry_prob = tk.Entry(tab2, width=40); entry_prob.pack()
+tk.Button(tab2, text="画像を選択", command=select_image).pack()
+label_prob_path = tk.Label(tab2, text="未設定", fg="blue"); label_prob_path.pack()
+tk.Button(tab2, text="追加", command=add_prob).pack(pady=5)
+listbox_probs = tk.Listbox(tab2, width=50, height=12, font=("", 11))
+listbox_probs.pack(pady=5); listbox_probs.bind("<Double-Button-1>", open_prob_event)
+tk.Button(tab2, text="削除", command=lambda: delete_item(listbox_probs, True), fg="red").pack()
+
+tk.Label(tab3, text="試験日を入力 (例: 20260530):").pack(pady=20)
+entry_exam = tk.Entry(tab3, width=20, font=("", 12)); entry_exam.pack(pady=10)
+tk.Button(tab3, text="設定する", command=set_exam_date).pack()
+
+load_data()
+root.mainloop()
