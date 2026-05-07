@@ -7,23 +7,14 @@ from datetime import datetime
 DATA_FILE = "grad_study_data.json"
 global_prob_data = []
 
-# --- 機能 ---
+# --- 機能面 (保存・計算ロジックは維持) ---
 def calculate_remaining_days(deadline_str):
-    """期限(MMDD)から残り日数を計算するヘルパー関数"""
-    if not deadline_str or deadline_str == "なし":
-        return None
+    if not deadline_str or deadline_str == "なし": return None
     try:
         today = datetime.now().date()
-        # 今年の日付として解釈
-        year = today.year
-        deadline_date = datetime.strptime(f"{year}{deadline_str}", "%Y%m%d").date()
-        
-        # もし期限が今日より前なら、来年の日付として扱う（例: 1月に12月の目標を立てる場合などへの配慮）
-        # ただし今回はシンプルに今年の日付で計算します
-        delta = (deadline_date - today).days
-        return delta
-    except:
-        return None
+        deadline_date = datetime.strptime(f"{today.year}{deadline_str}", "%Y%m%d").date()
+        return (deadline_date - today).days
+    except: return None
 
 def save_all_data():
     data = {
@@ -39,12 +30,9 @@ def update_countdown():
     if exam_date_str and exam_date_str != "未設定":
         try:
             exam_date = datetime.strptime(exam_date_str, "%Y-%m-%d")
-            today = datetime.now()
-            delta = (exam_date.date() - today.date()).days
-            label_countdown.config(text=f"試験まで残り {delta} 日" if delta >= 0 else "")
+            delta = (exam_date.date() - datetime.now().date()).days
+            label_countdown.config(text=f"✨ 試験まであと {delta} 日 ✨" if delta >= 0 else "")
         except: pass
-    else:
-        label_countdown.config(text="")
 
 def set_exam_date():
     date_val = entry_exam.get()
@@ -53,55 +41,37 @@ def set_exam_date():
         datetime.strptime(formatted_date, "%Y-%m-%d")
         label_exam_raw.config(text=formatted_date)
         entry_exam.delete(0, tk.END)
-        update_countdown()
-        save_all_data()
+        update_countdown(); save_all_data()
+        messagebox.showinfo("設定完了", "試験日を登録しました！応援しています！")
     except:
-        messagebox.showerror("エラー", "日付は「20260530」のように8桁で入力してください")
+        messagebox.showerror("エラー", "日付は「20260530」のように入力してね")
 
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # やることリストの読み込み（残り日数を再計算して表示）
-            for item in data.get("todo", []):
-                # 保存されているテキストからタスク名と期限情報を抽出して再構築
-                # シンプルにそのまま表示しても良いですが、起動時に日数を更新するのが理想です
-                listbox_todo.insert(tk.END, item)
-            
+            for item in data.get("todo", []): listbox_todo.insert(tk.END, item)
             global global_prob_data
             for item in data.get("good_probs", []):
                 if " | " in item:
                     name, path = item.split(" | ", 1)
-                    global_prob_data.append((name, path))
-                    listbox_probs.insert(tk.END, name)
-            saved_date = data.get("exam_date", "未設定")
-            label_exam_raw.config(text=saved_date)
+                    global_prob_data.append((name, path)); listbox_probs.insert(tk.END, name)
+            label_exam_raw.config(text=data.get("exam_date", "未設定"))
             update_countdown()
 
 def add_todo(event=None):
     task = entry_todo.get()
     deadline = entry_todo_date.get()
-    
     if task:
-        if deadline:
-            days_left = calculate_remaining_days(deadline)
-            formatted_deadline = f"{deadline[:2]}/{deadline[2:4]}"
-            if days_left is not None:
-                if days_left > 0:
-                    status = f"残り {days_left}日"
-                elif days_left == 0:
-                    status = "今日が期限！"
-                else:
-                    status = "期限切れ"
-                display_text = f"[ ] {task} (期限: {formatted_deadline} {status})"
-            else:
-                display_text = f"[ ] {task} (期限: {formatted_deadline})"
-        else:
-            display_text = f"[ ] {task} (期限: なし)"
-            
+        days_left = calculate_remaining_days(deadline)
+        f_date = f"{deadline[:2]}/{deadline[2:4]}" if deadline else "なし"
+        status = f"残り{days_left}日" if days_left is not None else ""
+        if days_left == 0: status = "今日！"
+        elif days_left is not None and days_left < 0: status = "期限切れ"
+        
+        display_text = f"[ ] {task} (期限:{f_date} {status})"
         listbox_todo.insert(tk.END, display_text)
-        entry_todo.delete(0, tk.END)
-        entry_todo_date.delete(0, tk.END)
+        entry_todo.delete(0, tk.END); entry_todo_date.delete(0, tk.END)
         save_all_data()
 
 def toggle_check_event(event):
@@ -109,20 +79,15 @@ def toggle_check_event(event):
         idx = listbox_todo.nearest(event.y)
         text = listbox_todo.get(idx)
         new_text = text.replace("[✓]", "[ ]") if "[✓]" in text else text.replace("[ ]", "[✓]")
-        listbox_todo.delete(idx)
-        listbox_todo.insert(idx, new_text)
-        save_all_data()
+        listbox_todo.delete(idx); listbox_todo.insert(idx, new_text); save_all_data()
     except: pass
 
 def add_prob():
     name = entry_prob.get()
     path = label_prob_path.cget("text")
     if name and path != "未設定":
-        global_prob_data.append((name, path))
-        listbox_probs.insert(tk.END, name)
-        entry_prob.delete(0, tk.END)
-        label_prob_path.config(text="未設定")
-        save_all_data()
+        global_prob_data.append((name, path)); listbox_probs.insert(tk.END, name)
+        entry_prob.delete(0, tk.END); label_prob_path.config(text="未設定"); save_all_data()
 
 def select_image():
     path = filedialog.askopenfilename(filetypes=[("Image", "*.jpg *.png *.gif")])
@@ -133,59 +98,69 @@ def open_prob_event(event):
         idx = listbox_probs.nearest(event.y)
         _, path = global_prob_data[idx]
         if os.path.exists(path): os.startfile(path)
-    except: pass
+    except: messagebox.showerror("エラー", "画像ファイルが見つかりません")
 
 def delete_item(lb, is_prob=False):
     try:
         idx = lb.curselection()[0]
-        lb.delete(idx)
-        if is_prob: global_prob_data.pop(idx)
-        save_all_data()
+        if messagebox.askyesno("確認", "この項目を削除してもいいですか？"):
+            lb.delete(idx)
+            if is_prob: global_prob_data.pop(idx)
+            save_all_data()
     except: pass
 
-# --- GUI ---
+# --- UI リニューアル ---
 root = tk.Tk()
-root.title("院試対策マネージャー")
-root.geometry("650x750")
+root.title("🌸 院試対策マネージャー 🌸")
+root.geometry("650x780")
+root.configure(bg="#f0f4f8") # 全体の背景を優しいグレーブルーに
 
-label_countdown = tk.Label(root, text="", font=("MS Gothic", 14, "bold"), fg="red")
-label_countdown.place(x=10, y=5)
+# カスタムスタイル
+style = ttk.Style()
+style.theme_use('clam')
+style.configure("TNotebook", background="#f0f4f8", borderwidth=0)
+style.configure("TNotebook.Tab", background="#d1d9e6", padding=[10, 5], font=("", 10))
+style.map("TNotebook.Tab", background=[("selected", "#ffffff")])
+
+# カウントダウン
+label_countdown = tk.Label(root, text="", font=("MS Gothic", 16, "bold"), fg="#e63946", bg="#f0f4f8")
+label_countdown.pack(pady=10)
 label_exam_raw = tk.Label(root, text="未設定")
 
 notebook = ttk.Notebook(root)
 tab1 = ttk.Frame(notebook); tab2 = ttk.Frame(notebook); tab3 = ttk.Frame(notebook)
-notebook.add(tab1, text=" やることリスト "); notebook.add(tab2, text=" 良問リスト "); notebook.add(tab3, text=" 試験日設定 ")
-notebook.pack(expand=True, fill="both", pady=(40, 0))
+notebook.add(tab1, text="  やること  "); notebook.add(tab2, text="  良問集  "); notebook.add(tab3, text="  設定  ")
+notebook.pack(expand=True, fill="both", padx=10, pady=10)
 
-# --- Tab 1: やること (残り日数表示付き) ---
-tk.Label(tab1, text="内容:").pack(pady=(10, 0))
-entry_todo = tk.Entry(tab1, width=40); entry_todo.pack()
+# --- Tab 1: やること ---
+frame_input1 = tk.Frame(tab1, pady=15); frame_input1.pack()
+tk.Label(frame_input1, text="なにをする？").grid(row=0, column=0, padx=5)
+entry_todo = tk.Entry(frame_input1, width=25); entry_todo.grid(row=0, column=1, padx=5)
+tk.Label(frame_input1, text="期限(0530)").grid(row=1, column=0, padx=5, pady=5)
+entry_todo_date = tk.Entry(frame_input1, width=15); entry_todo_date.grid(row=1, column=1, padx=5, sticky="w")
 
-tk.Label(tab1, text="期限 (例: 0530 / 空欄で期限なし):", fg="gray").pack(pady=(10, 0))
-entry_todo_date = tk.Entry(tab1, width=20); entry_todo_date.pack()
+tk.Button(tab1, text="リストに追加 ➕", command=add_todo, bg="#a8dadc", relief="flat").pack(pady=5)
+listbox_todo = tk.Listbox(tab1, width=60, height=18, font=("Courier", 11), borderwidth=0, highlightthickness=1, highlightcolor="#a8dadc")
+listbox_todo.pack(pady=10, padx=10); listbox_todo.bind("<Double-Button-1>", toggle_check_event)
+tk.Button(tab1, text="削除する 🗑", command=lambda: delete_item(listbox_todo), fg="#457b9d", relief="flat").pack()
 
-entry_todo.bind("<Return>", add_todo)
-entry_todo_date.bind("<Return>", add_todo)
+# --- Tab 2: 良問集 ---
+frame_input2 = tk.Frame(tab2, pady=15); frame_input2.pack()
+tk.Label(frame_input2, text="問題の名前:").pack()
+entry_prob = tk.Entry(frame_input2, width=35); entry_prob.pack(pady=5)
+tk.Button(frame_input2, text="📸 画像を選ぶ", command=select_image, bg="#f1faee").pack()
+label_prob_path = tk.Label(frame_input2, text="未設定", fg="#457b9d", font=("", 8)); label_prob_path.pack()
 
-tk.Button(tab1, text="追加", command=add_todo).pack(pady=10)
-
-listbox_todo = tk.Listbox(tab1, width=65, height=18, font=("Courier", 11))
-listbox_todo.pack(pady=5); listbox_todo.bind("<Double-Button-1>", toggle_check_event)
-tk.Button(tab1, text="削除", command=lambda: delete_item(listbox_todo), fg="red").pack()
-
-# --- Tab 2 & 3 は維持 ---
-tk.Label(tab2, text="良問アーカイブ:").pack(pady=5)
-entry_prob = tk.Entry(tab2, width=40); entry_prob.pack()
-tk.Button(tab2, text="画像を選択", command=select_image).pack()
-label_prob_path = tk.Label(tab2, text="未設定", fg="blue"); label_prob_path.pack()
-tk.Button(tab2, text="追加", command=add_prob).pack(pady=5)
-listbox_probs = tk.Listbox(tab2, width=50, height=12, font=("", 11))
+tk.Button(tab2, text="良問集に追加 ✨", command=add_prob, bg="#a8dadc", relief="flat").pack(pady=10)
+listbox_probs = tk.Listbox(tab2, width=50, height=14, font=("", 11), borderwidth=0)
 listbox_probs.pack(pady=5); listbox_probs.bind("<Double-Button-1>", open_prob_event)
-tk.Button(tab2, text="削除", command=lambda: delete_item(listbox_probs, True), fg="red").pack()
+tk.Button(tab2, text="削除する 🗑", command=lambda: delete_item(listbox_probs, True), fg="#457b9d", relief="flat").pack()
 
-tk.Label(tab3, text="試験日を入力 (例: 20260530):").pack(pady=20)
-entry_exam = tk.Entry(tab3, width=20, font=("", 12)); entry_exam.pack(pady=10)
-tk.Button(tab3, text="設定する", command=set_exam_date).pack()
+# --- Tab 3: 設定 ---
+tk.Label(tab3, text="試験日はいつ？", font=("", 12)).pack(pady=30)
+entry_exam = tk.Entry(tab3, width=20, font=("", 12), justify="center"); entry_exam.pack()
+tk.Label(tab3, text="(例: 20260825)", fg="gray").pack(pady=5)
+tk.Button(tab3, text="試験日をセット 🏁", command=set_exam_date, bg="#e63946", fg="white", font=("", 10, "bold")).pack(pady=20)
 
 load_data()
 root.mainloop()
